@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Country Info + Map + Borders</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to right, #0f2027, #203a43, #2c5364);
+      color: white;
+      padding: 2rem;
+      margin: 0;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .search-box {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    input[type="text"] {
+      padding: 0.8rem;
+      font-size: 1rem;
+      border: none;
+      border-radius: 8px;
+      width: 250px;
+      max-width: 90%;
+      outline: none;
+    }
+    button {
+      padding: 0.8rem 1.2rem;
+      margin-left: 10px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 8px;
+      background-color: #4caf50;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    .country-container {
+      max-width: 800px;
+      margin: auto;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.4);
+    }
+    .country-flag {
+      width: 100%;
+      max-width: 300px;
+      display: block;
+      margin: 0 auto 1.5rem;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(255,255,255,0.3);
+    }
+    .info {
+      margin-bottom: 1rem;
+    }
+    .info strong {
+      display: inline-block;
+      width: 140px;
+    }
+    #map {
+      margin-top: 2rem;
+      width: 100%;
+      height: 300px;
+      border: none;
+      border-radius: 10px;
+    }
+    #error {
+      text-align: center;
+      color: #ffcccc;
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🌐 Country Info + Map + Neighbors</h1>
+
+  <div class="search-box">
+    <input type="text" id="countryInput" placeholder="Enter country name..." />
+    <button onclick="searchCountry()">Search</button>
+  </div>
+
+  <div class="country-container" id="countryInfo">
+    Search any country to see details.
+  </div>
+
+  <div id="error"></div>
+
+  <script>
+    function searchCountry() {
+      const query = document.getElementById('countryInput').value.trim();
+      const container = document.getElementById('countryInfo');
+      const error = document.getElementById('error');
+      container.innerHTML = 'Loading...';
+      error.textContent = '';
+
+      if (!query) {
+        container.innerHTML = 'Please enter a country name.';
+        return;
+      }
+
+      fetch(`https://restcountries.com/v3.1/name/${encodeURIComponent(query)}`)
+        .then(response => {
+          if (!response.ok) throw new Error('Country not found.');
+          return response.json();
+        })
+        .then(async data => {
+          const country = data[0];
+          const latlng = country.latlng;
+          const borders = country.borders || [];
+
+          let borderNames = 'None';
+          if (borders.length > 0) {
+            const codes = borders.join(',');
+            const neighbors = await fetch(`https://restcountries.com/v3.1/alpha?codes=${codes}`)
+              .then(res => res.json());
+            borderNames = neighbors.map(n => n.name.common).join(', ');
+          }
+
+          container.innerHTML = `
+            <img class="country-flag" src="${country.flags.svg}" alt="Flag of ${country.name.common}" />
+            <div class="info"><strong>Official Name:</strong> ${country.name.official}</div>
+            <div class="info"><strong>Capital:</strong> ${country.capital?.[0] || 'N/A'}</div>
+            <div class="info"><strong>Region:</strong> ${country.region}</div>
+            <div class="info"><strong>Subregion:</strong> ${country.subregion}</div>
+            <div class="info"><strong>Population:</strong> ${country.population.toLocaleString()}</div>
+            <div class="info"><strong>Area:</strong> ${country.area.toLocaleString()} km²</div>
+            <div class="info"><strong>Timezones:</strong> ${country.timezones.join(', ')}</div>
+            <div class="info"><strong>Languages:</strong> ${Object.values(country.languages || {}).join(', ')}</div>
+            <div class="info"><strong>Currencies:</strong> ${Object.values(country.currencies || {}).map(c => c.name + ' (' + c.symbol + ')').join(', ')}</div>
+            <div class="info"><strong>Neighboring Countries:</strong> ${borderNames}</div>
+            <iframe id="map" 
+              src="https://www.google.com/maps?q=${latlng[0]},${latlng[1]}&hl=es;z=5&output=embed"
+              allowfullscreen>
+            </iframe>
+          `;
+        })
+        .catch(err => {
+          container.innerHTML = '';
+          error.textContent = err.message;
+        });
+    }
+  </script>
+
+</body>
+</html>
